@@ -3,18 +3,49 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const packageRoot = path.resolve(__dirname, "..");
-const requiredFiles = [
-  "readme.md",
-  "AGENTS.md",
-  "CLAUDE.md",
-  ".cursor/agents.md",
-  "agent-docs/system.md",
-  "agent-docs/general-directions.md",
-  "agent-docs/coding-conventions.md",
-  "agent-docs/ui-ux-conventions.md",
-  "agent-docs/architecture/overview.md",
-  "agent-docs/skills/README.md",
-];
+const templateRoot = path.join(packageRoot, "templates");
+const agentDocsTemplateRoot = path.join(packageRoot, "templates", "agent-docs");
+
+function toPosixPath(relativePath) {
+  return relativePath.split(path.sep).join("/");
+}
+
+function listMarkdownTemplates(root, current = "") {
+  const directory = path.join(root, current);
+  if (!fs.existsSync(directory)) {
+    return [];
+  }
+
+  const entries = fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => {
+    return a.name.localeCompare(b.name);
+  });
+
+  const files = [];
+  for (const entry of entries) {
+    const relativePath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listMarkdownTemplates(root, relativePath));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(relativePath);
+    }
+  }
+
+  return files;
+}
+
+function entryTemplateFiles() {
+  return listMarkdownTemplates(templateRoot)
+    .map(toPosixPath)
+    .filter((file) => !file.startsWith("agent-docs/"));
+}
+
+function requiredFiles() {
+  return [
+    "readme.md",
+    ...entryTemplateFiles(),
+    ...listMarkdownTemplates(agentDocsTemplateRoot).map((file) => toPosixPath(path.join("agent-docs", file))),
+  ];
+}
 
 function repoRoot() {
   const result = spawnSync("git", ["rev-parse", "--show-toplevel"], {
@@ -43,7 +74,7 @@ function run(command, args, options = {}) {
 }
 
 function verify(target) {
-  const missing = requiredFiles.filter((file) => !fs.existsSync(path.join(target, file)));
+  const missing = requiredFiles().filter((file) => !fs.existsSync(path.join(target, file)));
 
   if (missing.length > 0) {
     console.error("Missing expected scaffold files:");

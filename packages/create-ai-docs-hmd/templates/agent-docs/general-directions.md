@@ -1,4 +1,3 @@
-
 Required final checks:
 - After any feature update, bug fix, or other implementation task, run `npm run build` before considering the work done.
 - After any change, run a lint check so obvious compiler or lint regressions do not slip through.

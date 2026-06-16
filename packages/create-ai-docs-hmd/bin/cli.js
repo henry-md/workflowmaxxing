@@ -7,137 +7,89 @@ const pkg = require("../package.json");
 
 const START = "<!-- ai-docs-hmd:start -->";
 const END = "<!-- ai-docs-hmd:end -->";
+const templateRoot = path.join(__dirname, "..", "templates");
+const agentDocsTemplateRoot = path.join(templateRoot, "agent-docs");
 
-const directories = [
-  ".cursor",
-  "agent-docs",
-  "agent-docs/architecture",
-  "agent-docs/bug-fixes",
-  "agent-docs/regression-tests",
-  "agent-docs/skills",
-];
-
-const docs = [
-  {
-    path: "agent-docs/system.md",
-    content: `# System
-
-Describe what this system does, who it serves, and the major components involved.
-
-Include stable product URLs, important backend endpoints, external services, and any domain vocabulary that future agents should understand before making changes.
-`,
-  },
-  {
-    path: "agent-docs/general-directions.md",
-    content: `# General Directions
-
-Capture durable project guidance that should apply across many tasks.
-
-Prefer concise, reusable rules. Add repo-specific examples only when they clarify a broader principle.
-`,
-  },
-  {
-    path: "agent-docs/coding-conventions.md",
-    content: `# Coding Conventions
-
-Document required coding rules, dependency constraints, migration safety rules, file patterns, naming conventions, and verification commands.
-
-When there are multiple reasonable implementation paths, record the local preference here.
-`,
-  },
-  {
-    path: "agent-docs/ui-ux-conventions.md",
-    content: `# UI/UX Conventions
-
-Document visual, interaction, accessibility, and product-surface conventions that agents should follow when creating or changing user interfaces.
-
-Prefer concrete reusable rules over one-off taste notes.
-`,
-  },
-  {
-    path: "agent-docs/architecture/overview.md",
-    content: `# Architecture Overview
-
-Describe the codebase structure, major modules, data flow, integration boundaries, and where common kinds of changes should live.
-`,
-  },
-  {
-    path: "agent-docs/skills/README.md",
-    content: `# Skills
-
-Each file in this directory defines a reusable task.
-
-Invoke with:
-\`/<file-name-in-kebab-case>\`
-
-Example:
-\`/write-pr-description\`
-
-Skills are task-specific instructions that direct the agent to perform a job in a repeatable way.
-
-The user may:
-- Create a skill manually
-- Ask the agent to create a skill
-- Invoke a skill using slash commands
-
-Skill files should be concise. Each \`agent-docs/skills/[skill].md\` file should briefly outline what the skill is, what it should do, and any important constraints or steps to follow. The filename should be the skill name in kebab-case, matching the slash command.
-
-Examples:
-- \`agent-docs/skills/write-pr-description.md\` -> invoked with \`/write-pr-description\`
-- \`agent-docs/skills/refactor-auth-flow.md\` -> invoked with \`/refactor-auth-flow\`
-
-When a relevant skill exists, the agent should follow it.
-`,
-  },
-];
-
-function commonText(prefix) {
-  return `See canonical documentation:
-
-- ${prefix}agent-docs/system.md
-  High-level description of what the system does and the major components involved. Include important user-facing routes, backend endpoints, service boundaries, and product vocabulary.
-
-- ${prefix}agent-docs/general-directions.md
-  Durable project guidance that should apply across many tasks.
-
-- ${prefix}agent-docs/architecture/
-  How the codebase is structured and how major systems interact. Use this to understand where new code should live and how components connect.
-
-- ${prefix}agent-docs/coding-conventions.md
-  Required coding rules and constraints, such as migration rules, dependency rules, file patterns, naming conventions, and verification commands.
-
-- ${prefix}agent-docs/ui-ux-conventions.md
-  Required UI/UX rules and constraints. Follow these when creating or modifying user interfaces.
-
-- ${prefix}agent-docs/bug-fixes/
-  Short records of important bugs that may regress. Document what broke, how it was fixed, and focused checks that would catch it.
-
-- ${prefix}agent-docs/regression-tests/
-  Targeted regression notes for behavior that has broken repeatedly. Skim relevant files before touching nearby code.
-
-- ${prefix}agent-docs/skills/
-  Reusable task instructions that can be invoked by name when a relevant skill exists.
-
-When modifying code, follow the rules defined in these documents. Keep entries concise so the folder remains useful over time.`;
+function toPosixPath(relativePath) {
+  return relativePath.split(path.sep).join("/");
 }
 
-const entryFiles = [
-  {
-    path: "AGENTS.md",
-    title: "Codex Agent Instructions",
-    body: commonText(""),
-  },
-  {
-    path: "CLAUDE.md",
-    title: "Claude Agent Instructions",
-    body: commonText(""),
-  },
-  {
-    path: ".cursor/agents.md",
-    title: "Cursor Agent Instructions",
-    body: commonText("../"),
-  },
-];
+const baseDirectories = ["agent-docs"];
+
+function listMarkdownTemplates(root, current = "") {
+  const directory = path.join(root, current);
+  if (!fs.existsSync(directory)) {
+    return [];
+  }
+
+  const entries = fs.readdirSync(directory, { withFileTypes: true }).sort((a, b) => {
+    return a.name.localeCompare(b.name);
+  });
+
+  const files = [];
+  for (const entry of entries) {
+    const relativePath = path.join(current, entry.name);
+    if (entry.isDirectory()) {
+      files.push(...listMarkdownTemplates(root, relativePath));
+    } else if (entry.isFile() && entry.name.endsWith(".md")) {
+      files.push(relativePath);
+    }
+  }
+
+  return files;
+}
+
+function entryTemplatesFromTemplates() {
+  return listMarkdownTemplates(templateRoot)
+    .map(toPosixPath)
+    .filter((relativePath) => !relativePath.startsWith("agent-docs/"))
+    .map((relativePath) => {
+      return {
+        path: relativePath,
+        content: renderEntryTemplate(relativePath),
+      };
+    });
+}
+
+function agentDocsFromTemplates() {
+  return listMarkdownTemplates(agentDocsTemplateRoot).map((relativePath) => {
+    return {
+      path: toPosixPath(path.join("agent-docs", relativePath)),
+      content: fs.readFileSync(path.join(agentDocsTemplateRoot, relativePath), "utf8"),
+    };
+  });
+}
+
+function entryDirectoriesFromTemplates() {
+  const directories = new Set();
+
+  for (const entry of entryTemplatesFromTemplates()) {
+    const directory = path.posix.dirname(entry.path);
+    if (directory !== ".") {
+      directories.add(directory);
+    }
+  }
+
+  return [...directories].sort();
+}
+
+function agentDocDirectoriesFromTemplates() {
+  const directories = new Set();
+
+  for (const relativePath of listMarkdownTemplates(agentDocsTemplateRoot)) {
+    let directory = path.dirname(relativePath);
+    while (directory && directory !== ".") {
+      directories.add(toPosixPath(path.join("agent-docs", directory)));
+      directory = path.dirname(directory);
+    }
+  }
+
+  return [...directories].sort();
+}
+
+function renderEntryTemplate(relativePath) {
+  return fs.readFileSync(path.join(templateRoot, relativePath), "utf8");
+}
 
 function usage() {
   return `create-ai-docs-hmd ${pkg.version}
@@ -208,15 +160,19 @@ ${body}
 ${END}`;
 }
 
-function fullEntryFile(title, body) {
-  return `# ${title}
+function renderedManagedBlock(rendered) {
+  const startIndex = rendered.indexOf(START);
+  const endIndex = rendered.indexOf(END);
 
-${managedBlock(body)}
-`;
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    return rendered.slice(startIndex, endIndex + END.length);
+  }
+
+  return managedBlock(rendered.trimEnd());
 }
 
-function mergeEntryFile(existing, title, body) {
-  const nextBlock = managedBlock(body);
+function mergeEntryFile(existing, rendered) {
+  const nextBlock = renderedManagedBlock(rendered);
   const startIndex = existing.indexOf(START);
   const endIndex = existing.indexOf(END);
 
@@ -227,7 +183,7 @@ function mergeEntryFile(existing, title, body) {
 
   const trimmed = existing.trimEnd();
   if (!trimmed) {
-    return fullEntryFile(title, body);
+    return rendered;
   }
 
   return `${trimmed}
@@ -258,10 +214,7 @@ function writeFile(root, relativePath, content, mode, options, actions) {
   let action = "created";
 
   if (mode === "entry") {
-    const entry = entryFiles.find((candidate) => candidate.path === relativePath);
-    next = options.force
-      ? fullEntryFile(entry.title, entry.body)
-      : mergeEntryFile(existing, entry.title, entry.body);
+    next = options.force ? content : mergeEntryFile(existing, content);
   } else if (exists && !options.force && existing.trim().length > 0) {
     actions.skipped.push(`${relativePath} (exists)`);
     return;
@@ -297,15 +250,15 @@ function scaffold(options) {
     fs.mkdirSync(root, { recursive: true });
   }
 
-  for (const directory of directories) {
+  for (const directory of [...baseDirectories, ...entryDirectoriesFromTemplates(), ...agentDocDirectoriesFromTemplates()]) {
     ensureDir(root, directory, options, actions);
   }
 
-  for (const entry of entryFiles) {
-    writeFile(root, entry.path, fullEntryFile(entry.title, entry.body), "entry", options, actions);
+  for (const entry of entryTemplatesFromTemplates()) {
+    writeFile(root, entry.path, entry.content, "entry", options, actions);
   }
 
-  for (const doc of docs) {
+  for (const doc of agentDocsFromTemplates()) {
     writeFile(root, doc.path, doc.content, "doc", options, actions);
   }
 
