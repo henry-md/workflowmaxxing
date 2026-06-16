@@ -2,6 +2,8 @@
 Make the agent entry points (with text) and /agent-docs.
 The God command:
 
+----------------------------------------------------------------------
+
 mkdir -p \
   .cursor \
   agent-docs \
@@ -79,6 +81,8 @@ printf "# Cursor Agent Instructions\n\n%s\n\n%s\n" \
 "$(echo "$COMMON_TEXT" | sed 's|agent-docs/|../agent-docs/|g')" \
 > .cursor/agents.md
 
+----------------------------------------------------------------------
+
 God command explanation
 
 Entry points for Cursor, Codex, Claude CLI:
@@ -127,17 +131,11 @@ Further codebase standards
 
 
 
-
-
-
-
 Worktree
 git worktree add -b <new-branch-name> ../dev/<folder-name> <base-branch>
 ex.
 git worktree add -b henry-feat ../dev/henry-feat main
 git worktree remove ../dev/henry-feat [from inside main repo]
-
-
 
 
 Things to look into
