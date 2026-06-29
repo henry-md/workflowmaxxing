@@ -43,5 +43,4 @@ Making Check Command Work:
 - Keep reusable `/check` automation, scripts, per-repo config, auth state, notes, and screenshots under the global `$check` skill directory. Do not build repo-local helper scripts or runtime folders unless the global skill genuinely cannot support the project shape. Why: the workflow should get more portable over time, not leave one-off local scaffolding behind in each repo.
 - Repo docs should describe the product and architecture choices that make `/check` effective, not duplicate tool runtime setup. If a project-specific convention matters, document the convention here and let the global skill own the mechanics. Why: future repos should inherit the principles, while the global skill stays the reusable implementation.
 
-Comments:
-- Write them! Add single-line comments above large functions, or complex pieces of functionality. Do NOT over-engineer comments with 5 lines of inputs and outputs. Just a singe line explaining what it does: // Does X Y Z. Try to make the codebase approachable to new developers.
+- Comments: Write them! Add single-line comments above large functions, or complex pieces of functionality. Do NOT over-engineer comments with 5 lines of inputs and outputs. Just a singe line explaining what it does: // Does X Y Z. Try to make the codebase approachable to new developers.

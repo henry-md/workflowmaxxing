@@ -9,6 +9,7 @@ const cli = path.join(root, "bin", "cli.js");
 const templateRoot = path.join(root, "templates");
 const agentDocsTemplateRoot = path.join(root, "templates", "agent-docs");
 const START = "<!-- ai-docs-hmd:start -->";
+const END = "<!-- ai-docs-hmd:end -->";
 
 function tempDir(name) {
   return fs.mkdtempSync(path.join(os.tmpdir(), `ai-docs-hmd-${name}-`));
@@ -31,6 +32,13 @@ ${result.stderr}`);
   return result;
 }
 
+function runRaw(args, cwd) {
+  return spawnSync(process.execPath, [cli, ...args], {
+    cwd,
+    encoding: "utf8",
+  });
+}
+
 function read(file) {
   return fs.readFileSync(file, "utf8");
 }
@@ -41,6 +49,23 @@ function exists(file) {
 
 function count(text, needle) {
   return text.split(needle).length - 1;
+}
+
+function managedBlock(body) {
+  return `${START}
+${body}
+${END}`;
+}
+
+function renderedManagedBlock(rendered) {
+  const startIndex = rendered.indexOf(START);
+  const endIndex = rendered.indexOf(END);
+
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    return `${rendered.slice(startIndex, endIndex + END.length)}\n`;
+  }
+
+  return `${managedBlock(rendered.trimEnd())}\n`;
 }
 
 function toPosixPath(relativePath) {
@@ -92,6 +117,10 @@ function firstEntryTemplateFile() {
   return first;
 }
 
+function renderedAgentDocTemplate(templateFile) {
+  return renderedManagedBlock(read(path.join(agentDocsTemplateRoot, templateFile)));
+}
+
 {
   const repo = tempDir("fresh");
   run([], repo);
@@ -113,6 +142,17 @@ function firstEntryTemplateFile() {
 }
 
 {
+  const repo = tempDir("default-conflict");
+  run([], repo);
+
+  const result = runRaw([], repo);
+  assert.notStrictEqual(result.status, 0);
+  assert.match(result.stderr, /Refusing to scaffold because these template files already exist/);
+  assert.match(result.stderr, /AGENTS\.md/);
+  assert.match(result.stderr, /--force/);
+}
+
+{
   const repo = tempDir("merge");
   const entryFile = firstEntryTemplateFile();
   const templateFile = firstTemplateFile();
@@ -127,9 +167,52 @@ function firstEntryTemplateFile() {
   run(["--merge"], repo);
 
   const entry = read(path.join(repo, entryFile));
+  const doc = read(outputFile);
   assert.match(entry, /Keep me\./);
   assert.strictEqual(count(entry, START), 1);
-  assert.strictEqual(read(outputFile), "# Existing Template File\n");
+  assert.match(doc, /# Existing Template File/);
+  assert.strictEqual(count(doc, START), 1);
+}
+
+{
+  const repo = tempDir("migrate-unmanaged-entry");
+  const cursorFile = path.join(repo, ".cursor", "agents.md");
+
+  fs.mkdirSync(path.dirname(cursorFile), { recursive: true });
+  fs.writeFileSync(
+    cursorFile,
+    "Primary agent instructions live in `../AGENTS.md`. Read and follow that file before making changes.\n",
+    "utf8",
+  );
+
+  run(["--merge"], repo);
+  run(["--merge"], repo);
+
+  const cursor = read(cursorFile);
+  assert.strictEqual(count(cursor, START), 1);
+  assert.strictEqual(count(cursor, "Primary agent instructions live"), 1);
+}
+
+{
+  const repo = tempDir("migrate-managed-entry");
+  const cursorFile = path.join(repo, ".cursor", "agents.md");
+
+  fs.mkdirSync(path.dirname(cursorFile), { recursive: true });
+  fs.writeFileSync(
+    cursorFile,
+    `${START}
+Primary agent instructions live in \`../AGENTS.md\`. Read and follow that file before making changes.
+${END}
+`,
+    "utf8",
+  );
+
+  run(["--merge"], repo);
+  run(["--merge"], repo);
+
+  const cursor = read(cursorFile);
+  assert.strictEqual(count(cursor, START), 1);
+  assert.strictEqual(count(cursor, "Primary agent instructions live"), 1);
 }
 
 {
@@ -197,7 +280,7 @@ function firstEntryTemplateFile() {
   try {
     fs.writeFileSync(
       entryTemplate,
-      "# Extra Entry\n\n<!-- ai-docs-hmd:start -->\nDynamic entry template.\n<!-- ai-docs-hmd:end -->\n",
+      "# Extra Entry\n\nDynamic entry template.\n",
       "utf8",
     );
 
@@ -206,7 +289,7 @@ function firstEntryTemplateFile() {
 
     assert.strictEqual(
       read(path.join(repo, "EXTRA_ENTRY.md")),
-      "# Extra Entry\n\n<!-- ai-docs-hmd:start -->\nDynamic entry template.\n<!-- ai-docs-hmd:end -->\n",
+      "# Extra Entry\n\nDynamic entry template.\n",
     );
 
     fs.rmSync(entryTemplate, { force: true });

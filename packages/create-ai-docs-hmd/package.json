@@ -11,11 +11,11 @@
     "templates"
   ],
   "scripts": {
-    "test": "node test/cli.test.js",
-    "test:scaffold": "node test/scaffold-output.js",
-    "test:scaffold:open": "node test/scaffold-output.js --open",
-    "clean:scaffold": "node test/scaffold-output.js --clean",
-    "pack:dry-run": "npm pack --dry-run"
+    "test": "node test/scaffold-output.js",
+    "check": "node test/cli.test.js",
+    "pack:dry-run": "npm pack --dry-run",
+    "test:merge": "node test/scaffold-output.js --merge",
+    "test:force": "node test/scaffold-output.js --force"
   },
   "keywords": [
     "ai",

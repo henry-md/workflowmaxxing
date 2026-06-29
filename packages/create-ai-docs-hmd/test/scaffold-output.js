@@ -102,28 +102,28 @@ function timestamp(date) {
 
 const root = repoRoot();
 const target = path.join(root, "test-output");
-const packagePathFromRoot = path.relative(root, packageRoot);
+const isMergeTest = process.argv.includes("--merge");
+const isForceTest = process.argv.includes("--force");
 
-if (process.argv.includes("--clean")) {
+if (!isMergeTest && !isForceTest) {
   fs.rmSync(target, { recursive: true, force: true });
-  console.log(`Removed ${target}`);
-  process.exit(0);
+  fs.mkdirSync(target, { recursive: true });
 }
 
-fs.rmSync(target, { recursive: true, force: true });
-fs.mkdirSync(target, { recursive: true });
-
-run(process.execPath, [path.join(packageRoot, "bin/cli.js"), "--target", target]);
+run(process.execPath, [
+  path.join(packageRoot, "bin/cli.js"),
+  "--target",
+  target,
+  isMergeTest ? "--merge" : "",
+  isForceTest ? "--force" : "",
+].filter(Boolean));
 fs.writeFileSync(path.join(target, "readme.md"), `last run: ${timestamp(new Date())}\n`, "utf8");
 verify(target);
 
-console.log(`\nScaffold test output created at:\n${target}`);
-console.log(`\nClean up with:\nnpm --prefix ${packagePathFromRoot} run clean:scaffold`);
+const label = isMergeTest
+  ? "Merge test reran against existing output"
+  : isForceTest
+    ? "Force test overwrote existing output"
+    : "Fresh default test output created";
 
-if (process.argv.includes("--open")) {
-  if (process.platform === "darwin") {
-    run("open", [target]);
-  } else {
-    console.log("\nOpen the folder above to inspect the generated files.");
-  }
-}
+console.log(`\n${label} at:\n${target}`);

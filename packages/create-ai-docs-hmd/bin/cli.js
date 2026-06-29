@@ -100,7 +100,7 @@ Usage:
   npx create-ai-docs-hmd@latest init
 
 Options:
-  --merge       Preserve existing content and update the managed block. This is the default.
+  --merge       Preserve existing content and update managed blocks.
   --force       Overwrite scaffolded files with the canonical templates.
   --dry-run     Print planned changes without writing files.
   --target DIR  Scaffold a specific directory instead of the current directory.
@@ -113,7 +113,7 @@ function parseArgs(argv) {
   const options = {
     dryRun: false,
     force: false,
-    merge: true,
+    merge: false,
     target: process.cwd(),
   };
 
@@ -171,7 +171,22 @@ function renderedManagedBlock(rendered) {
   return managedBlock(rendered.trimEnd());
 }
 
-function mergeEntryFile(existing, rendered) {
+function managedContent(rendered) {
+  return `${renderedManagedBlock(rendered)}\n`;
+}
+
+function unwrappedManagedBody(rendered) {
+  const startIndex = rendered.indexOf(START);
+  const endIndex = rendered.indexOf(END);
+
+  if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+    return rendered.slice(startIndex + START.length, endIndex).trim();
+  }
+
+  return rendered.trim();
+}
+
+function mergeManagedFile(existing, rendered) {
   const nextBlock = renderedManagedBlock(rendered);
   const startIndex = existing.indexOf(START);
   const endIndex = existing.indexOf(END);
@@ -183,13 +198,43 @@ function mergeEntryFile(existing, rendered) {
 
   const trimmed = existing.trimEnd();
   if (!trimmed) {
-    return rendered;
+    return managedContent(rendered);
+  }
+
+  if (trimmed.trim() === unwrappedManagedBody(rendered)) {
+    return managedContent(rendered);
   }
 
   return `${trimmed}
 
 ${nextBlock}
 `;
+}
+
+function outputFilesFromTemplates() {
+  return [...entryTemplatesFromTemplates(), ...agentDocsFromTemplates()];
+}
+
+function existingTemplateFiles(root) {
+  return outputFilesFromTemplates()
+    .map((file) => file.path)
+    .filter((relativePath) => fs.existsSync(path.join(root, relativePath)));
+}
+
+function assertNoExistingTemplateFiles(root) {
+  const conflicts = existingTemplateFiles(root);
+  if (conflicts.length === 0) {
+    return;
+  }
+
+  throw new Error(
+    [
+      "Refusing to scaffold because these template files already exist:",
+      ...conflicts.map((file) => `  - ${file}`),
+      "",
+      "Delete those files before the command can run successfully, or rerun with --force to overwrite them.",
+    ].join("\n"),
+  );
 }
 
 function ensureDir(root, relativeDir, options, actions) {
@@ -206,18 +251,15 @@ function ensureDir(root, relativeDir, options, actions) {
   }
 }
 
-function writeFile(root, relativePath, content, mode, options, actions) {
+function writeFile(root, relativePath, content, options, actions) {
   const absolutePath = path.join(root, relativePath);
   const exists = fs.existsSync(absolutePath);
   const existing = exists ? fs.readFileSync(absolutePath, "utf8") : "";
   let next = content;
   let action = "created";
 
-  if (mode === "entry") {
-    next = options.force ? content : mergeEntryFile(existing, content);
-  } else if (exists && !options.force && existing.trim().length > 0) {
-    actions.skipped.push(`${relativePath} (exists)`);
-    return;
+  if (options.merge) {
+    next = mergeManagedFile(existing, content);
   }
 
   if (exists && existing === next) {
@@ -250,16 +292,16 @@ function scaffold(options) {
     fs.mkdirSync(root, { recursive: true });
   }
 
+  if (!options.force && !options.merge) {
+    assertNoExistingTemplateFiles(root);
+  }
+
   for (const directory of [...baseDirectories, ...entryDirectoriesFromTemplates(), ...agentDocDirectoriesFromTemplates()]) {
     ensureDir(root, directory, options, actions);
   }
 
-  for (const entry of entryTemplatesFromTemplates()) {
-    writeFile(root, entry.path, entry.content, "entry", options, actions);
-  }
-
-  for (const doc of agentDocsFromTemplates()) {
-    writeFile(root, doc.path, doc.content, "doc", options, actions);
+  for (const file of outputFilesFromTemplates()) {
+    writeFile(root, file.path, file.content, options, actions);
   }
 
   return actions;

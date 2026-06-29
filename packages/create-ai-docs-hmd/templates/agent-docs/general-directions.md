@@ -18,9 +18,6 @@ Migration safety:
 - If `npx prisma migrate dev --name <migration_name>` fails because of migration drift, a modified migration, or a reset prompt, stop immediately. Do not create a workaround by editing/deleting migration files; explain the problem and ask the user what they want to run.
 - Creating a brand-new migration the right way with `npx prisma migrate dev --name <migration_name>` is allowed once per change when schema work is actually needed.
 
-UI content:
-Do not include developer-facing implementation details in the product UI. Avoid sidebars, helper copy, or labels that tell the user about required env vars, API routing, auth wiring, or other setup details the end user does not need.
-
 Local runtime:
 - Do not leave `next dev` or any other long-running local server/process running at the end of a task unless the user explicitly asks for it.
 - If you start a local server for verification, stop it before handing control back to the user so they can run it themselves.
