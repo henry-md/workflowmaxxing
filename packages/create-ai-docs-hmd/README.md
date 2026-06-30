@@ -32,9 +32,7 @@ Update npm package:
 gh auth login
 npm login
 
-cd packages/create-ai-docs-hmd
-npm version patch --no-git-tag-version
-npm publish --access public
+cd packages/create-ai-docs-hmd && npm version patch --no-git-tag-version && npm publish --access public
 ```
 
 Verify npm has registered the changes:

@@ -18,8 +18,9 @@ Check the following after any major implementation or bug-fix. Your job is not d
 - ONLY work off main.
 - Do not create worktrees unless the user explicitly says to do this.
 
-## Local runtime
+## Starting dev servers
 
+- `pnpm dev` or `npm run dev` should always work for the user and start the app's normal dev server, and should never be reserved by a running agent. To make this happen, agents should try to use the port above teh app's default dev port (default port + 1) and should continue going up if that port is taken (+2, +3). For ex. if the frontend is running on :3000 and the backend is on :3001, and you want to create a dev port for the frontend, you should start on :3002 so that you don't conflict with any user port.
 - Do not leave `next dev` or any other long-running local server/process running at the end of a task unless the user explicitly asks for it.
 - If you start or take over a local dev server or other long-running verification process, stop it before ending your response unless the user explicitly asked you to leave it running, and mention the released port or command when relevant.
 - Do not "pause" a local server with signals like `SIGSTOP` as a handoff mechanism; fully stop it instead unless the user explicitly asks for a pause.
