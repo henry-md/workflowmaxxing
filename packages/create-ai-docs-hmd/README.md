@@ -36,3 +36,9 @@ cd packages/create-ai-docs-hmd
 npm version patch --no-git-tag-version
 npm publish --access public
 ```
+
+Verify npm has registered the changes:
+
+```sh
+npm view create-ai-docs-hmd version
+```
