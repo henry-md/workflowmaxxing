@@ -2,47 +2,29 @@
 
 Scaffolds AI agent documentation entry points for Codex, Claude, and Cursor.
 
-## Use
+## Use once uploaded to npm
 
 ```sh
 npm init ai-docs-hmd@latest
+npm init ai-docs-hmd@latest -- --merge
+npm init ai-docs-hmd@latest -- --force
 ```
 
 ## Test locally
 
-Create the files in a visible `test-output` folder with the default command behavior:
-
 ```sh
 npm --prefix packages/create-ai-docs-hmd test
+npm --prefix packages/create-ai-docs-hmd test -- --merge
+npm --prefix packages/create-ai-docs-hmd test -- --force
 ```
 
-Rerun against the existing `test-output` folder with managed-block merge behavior:
+(1) default script will give an error if any file we work with exists, and isn't empty
+(2) merge will replace only <!-- Generated --> blocks, keeping content as-is
+(3) force will override existing content in files w/o <!-- Generated --> blocks
 
-```sh
-npm --prefix packages/create-ai-docs-hmd run test:merge
-```
-
-Rerun against the existing `test-output` folder with overwrite behavior:
-
-```sh
-npm --prefix packages/create-ai-docs-hmd run test:force
-```
-
-Package checks:
-
-```sh
-npm --prefix packages/create-ai-docs-hmd run check
-npm --prefix packages/create-ai-docs-hmd run pack:dry-run
-```
+Tests show up in test-output folder.
 
 ## Publish
-
-First publish:
-
-```sh
-cd packages/create-ai-docs-hmd
-npm publish --access public
-```
 
 Update npm package:
 

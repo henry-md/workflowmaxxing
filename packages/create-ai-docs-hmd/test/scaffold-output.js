@@ -100,23 +100,23 @@ function timestamp(date) {
   return `${month}/${day}/${year} ${hour}:${minute}:${second}`;
 }
 
-const root = repoRoot();
-const target = path.join(root, "test-output");
-const isMergeTest = process.argv.includes("--merge");
-const isForceTest = process.argv.includes("--force");
-
-if (!isMergeTest && !isForceTest) {
-  fs.rmSync(target, { recursive: true, force: true });
-  fs.mkdirSync(target, { recursive: true });
+function hasFlag(args, name) {
+  return args.includes(name);
 }
 
-run(process.execPath, [
-  path.join(packageRoot, "bin/cli.js"),
-  "--target",
-  target,
-  isMergeTest ? "--merge" : "",
-  isForceTest ? "--force" : "",
-].filter(Boolean));
+const root = repoRoot();
+const forwardedArgs = process.argv.slice(2);
+const targetRoot = process.env.AI_DOCS_HMD_TEST_ROOT || root;
+const target = path.join(targetRoot, "test-output");
+const isMergeTest = hasFlag(forwardedArgs, "--merge");
+const isForceTest = hasFlag(forwardedArgs, "--force");
+
+fs.mkdirSync(target, { recursive: true });
+
+const cliArgs = [path.join(packageRoot, "bin/cli.js"), ...forwardedArgs];
+
+run(process.execPath, cliArgs, { cwd: target });
+
 fs.writeFileSync(path.join(target, "readme.md"), `last run: ${timestamp(new Date())}\n`, "utf8");
 verify(target);
 

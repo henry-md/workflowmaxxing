@@ -1,6 +1,6 @@
 {
   "name": "create-ai-docs-hmd",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Scaffold AI agent documentation entry points for Codex, Claude, and Cursor.",
   "bin": {
     "create-ai-docs-hmd": "bin/cli.js",
@@ -13,7 +13,6 @@
   "scripts": {
     "test": "node test/scaffold-output.js",
     "check": "node test/cli.test.js",
-    "pack:dry-run": "npm pack --dry-run",
     "test:merge": "node test/scaffold-output.js --merge",
     "test:force": "node test/scaffold-output.js --force"
   },
